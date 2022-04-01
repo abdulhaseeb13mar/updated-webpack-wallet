@@ -1,8 +1,13 @@
 module.exports = {
   webpack: {
+    
     configure: (webpackConfig, { env, paths }) => {
       return {
         ...webpackConfig,
+        // resolve: {
+        //   fallback: { stream: require.resolve("stream-browserify") },
+        // },
+        
         entry: {
           main: [
             env === "development" &&
@@ -23,6 +28,9 @@ module.exports = {
           runtimeChunk: false,
         },
       };
+    },
+    resolve: {
+      fallback: { stream: require.resolve("stream-browserify") },
     },
   },
 };
