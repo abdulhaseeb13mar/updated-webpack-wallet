@@ -1,27 +1,57 @@
-import { MESSAGE_ORIGIN_CONTENT } from "metadot-extension-base/defaults";
-import { enable, handleResponse } from "metadot-extension-base/page";
-import { injectExtension } from "@polkadot/extension-inject";
+// need to make sure we aren't affected by overlapping namespaces
+// and that we dont affect the app with our namespace
+// mostly a fix for web3's BigNumber if AMD's "define" is defined...
+let __define;
 
-// setup a response listener
-// (events created by the loader for extension responses)
-window.addEventListener("message", ({ data, source }) => {
-  // only allow messages from our window, by the loader
-  if (source !== window || data.origin !== MESSAGE_ORIGIN_CONTENT) {
-    return;
+/**
+ * Caches reference to global define object and deletes it to
+ * avoid conflicts with other global define objects, such as
+ * AMD's define function
+ */
+const cleanContextForImports = () => {
+  __define = global.define;
+  try {
+    global.define = undefined;
+  } catch (_) {
+    console.warn("SonarWallet - global.define could not be deleted.");
   }
+};
 
-  if (data.id) {
-    handleResponse(data);
-  } else {
-    console.error("Missing id for response.");
+/**
+ * Restores global define object from cached reference
+ */
+const restoreContextAfterImports = () => {
+  try {
+    global.define = __define;
+  } catch (_) {
+    console.warn("SonarWallet - global.define could not be overwritten.");
   }
+};
+
+cleanContextForImports();
+
+/* eslint-disable import/first */
+import log from "loglevel";
+import { WindowPostMessageStream } from "@metamask/post-message-stream";
+import { initializeProvider } from "@metamask/providers";
+
+restoreContextAfterImports();
+
+// log.setDefaultLevel(process.env.METAMASK_DEBUG ? "debug" : "warn");
+// log.setDefaultLevel("debug");
+
+//
+// setup plugin communication
+//
+
+// setup background connection
+const metamaskStream = new WindowPostMessageStream({
+  name: "sonarwallet-page",
+  target: "sonarwallet-contentscript",
 });
 
-function inject() {
-  injectExtension(enable, {
-    name: "sonar",
-    version: "0.0.1",
-  });
-}
-
-inject();
+initializeProvider({
+  connectionStream: metamaskStream,
+  logger: log,
+  shouldShimWeb3: true,
+});
