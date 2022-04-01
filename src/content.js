@@ -1,29 +1,12 @@
-/* global chrome */
 import pump from "pump";
 import { WindowPostMessageStream } from "@metamask/post-message-stream";
-
 import PortStream from "extension-port-stream";
-// import preval from "babel-plugin-preval/macro";
-// import ObjectMultiplex from "obj-multiplex";
 const ObjectMultiplex = require("obj-multiplex");
-// import extension from "extensionizer";
 const extension = require("extensionizer");
 
-// These require calls need to use require to be statically recognized by browserify
-// const path = require("path");
-
-// const pageContent = preval`
-//     const fs = require("fs");
-//     module.exports = fs.readFileSync(require.resolve('./inpage.js'), 'utf8');
-// `;
-
-// const pageContent = fs.readFileSync("page.js", "utf8");
-// const pageSuffix = `//# sourceURL=${extension.runtime.getURL("page.js")}\n`;
-// const pageBundle = pageContent + pageSuffix;
-
-const CONTENT_SCRIPT = "metamask-contentscript";
-const PAGE = "metamask-page";
-const PROVIDER = "metamask-provider";
+const CONTENT_SCRIPT = "sonar-content";
+const PAGE = "sonar-page";
+const PROVIDER = "sonar-provider";
 
 // TODO:LegacyProvider: Delete
 const LEGACY_CONTENT_SCRIPT = "contentscript";
@@ -38,31 +21,14 @@ if (shouldInjectProvider()) {
 
 /**
  * Injects a script tag into the current document
- *
- * @param {string} content - Code to be executed in the current document
  */
-function injectScript(content) {
+function injectScript() {
   try {
-    // const container = document.head || document.documentElement;
-    // const scriptTag = document.createElement("script");
-    // scriptTag.setAttribute("async", "false");
-    // scriptTag.setAttribute("type", "module");
-    // scriptTag.textContent = content;
-    // container.insertBefore(scriptTag, container.children[0]);
-    // // container.removeChild(scriptTag);
-    // console.log("reached here", scriptTag, container);
-
-    if (document.head) {
-      console.log("document head");
-    }
-    if (document.documentElement) {
-      console.log("document element", document.documentElement);
-    }
-    const container = document.documentElement;
+    const container = document.head || document.documentElement;
     const script = document.createElement("script");
-    script.setAttribute("src", chrome.extension.getURL("page.js"));
+    script.setAttribute("src", extension.runtime.getURL("page.js"));
     container.insertBefore(script, container.children[0]);
-    console.log("reached here", container);
+    container.removeChild(script);
   } catch (error) {
     console.error("SonarWallet: Provider injection failed.", error);
   }
@@ -74,7 +40,6 @@ function injectScript(content) {
  *
  */
 async function setupStreams() {
-  console.log("setupStreams");
   // the transport-specific streams for communication between page and background
   const pageStream = new WindowPostMessageStream({
     name: CONTENT_SCRIPT,
@@ -143,7 +108,6 @@ async function setupStreams() {
     legacyPageMux,
     legacyExtensionMux
   );
-  console.log("setupStreams done");
 }
 
 function forwardTrafficBetweenMuxes(channelName, muxA, muxB) {

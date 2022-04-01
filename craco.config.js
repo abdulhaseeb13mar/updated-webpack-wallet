@@ -1,12 +1,10 @@
+const webpack = require("webpack");
+
 module.exports = {
   webpack: {
     configure: (webpackConfig, { env, paths }) => {
       return {
         ...webpackConfig,
-        // resolve: {
-        //   fallback: { stream: require.resolve("stream-browserify") },
-        // },
-
         entry: {
           main: [
             env === "development" &&
@@ -32,10 +30,13 @@ module.exports = {
             stream: require.resolve("stream-browserify"),
           },
         },
+        plugins: [
+          ...webpackConfig.plugins,
+          new webpack.ProvidePlugin({
+            process: "process/browser.js",
+          }),
+        ],
       };
-    },
-    resolve: {
-      fallback: { stream: require.resolve("stream-browserify") },
     },
   },
 };

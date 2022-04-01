@@ -37,21 +37,19 @@ import { initializeProvider } from "@metamask/providers";
 
 restoreContextAfterImports();
 
-// log.setDefaultLevel(process.env.METAMASK_DEBUG ? "debug" : "warn");
-// log.setDefaultLevel("debug");
+log.setDefaultLevel(process.env.SONAR_DEBUG ? "debug" : "warn");
 
 //
 // setup plugin communication
-//
 
 // setup background connection
-const metamaskStream = new WindowPostMessageStream({
-  name: "sonarwallet-page",
-  target: "sonarwallet-contentscript",
+const sonarStream = new WindowPostMessageStream({
+  name: "sonar-page",
+  target: "sonar-content",
 });
 
 initializeProvider({
-  connectionStream: metamaskStream,
+  connectionStream: sonarStream,
   logger: log,
   shouldShimWeb3: true,
 });
