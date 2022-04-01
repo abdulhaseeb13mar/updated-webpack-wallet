@@ -1,27 +1,25 @@
 /* global chrome */
 import pump from "pump";
 import { WindowPostMessageStream } from "@metamask/post-message-stream";
-// import ObjectMultiplex from "obj-multiplex";
-const ObjectMultiplex =require("multiplex");
-
-// import extension from "extensionizer";
-// import extension from "extensionizer";
-const extension =require("extensionizer");
 
 import PortStream from "extension-port-stream";
-import preval from "babel-plugin-preval/macro";
+// import preval from "babel-plugin-preval/macro";
+// import ObjectMultiplex from "obj-multiplex";
+const ObjectMultiplex = require("obj-multiplex");
+// import extension from "extensionizer";
+const extension = require("extensionizer");
 
 // These require calls need to use require to be statically recognized by browserify
 // const path = require("path");
 
-const pageContent = preval`
-    const fs = require("fs");
-    module.exports = fs.readFileSync(require.resolve('./inpage.js'), 'utf8');
-`;
+// const pageContent = preval`
+//     const fs = require("fs");
+//     module.exports = fs.readFileSync(require.resolve('./inpage.js'), 'utf8');
+// `;
 
 // const pageContent = fs.readFileSync("page.js", "utf8");
-const pageSuffix = `//# sourceURL=${extension.runtime.getURL("page.js")}\n`;
-const pageBundle = pageContent + pageSuffix;
+// const pageSuffix = `//# sourceURL=${extension.runtime.getURL("page.js")}\n`;
+// const pageBundle = pageContent + pageSuffix;
 
 const CONTENT_SCRIPT = "metamask-contentscript";
 const PAGE = "metamask-page";
@@ -34,7 +32,7 @@ const LEGACY_PROVIDER = "provider";
 const LEGACY_PUBLIC_CONFIG = "publicConfig";
 
 if (shouldInjectProvider()) {
-  injectScript(pageBundle);
+  injectScript();
   setupStreams();
 }
 
