@@ -1,19 +1,31 @@
-import { assert } from "@polkadot/util";
-import { PORT_CONTENT, PORT_EXTENSION } from "metadot-extension-base/defaults";
-import { chrome } from "@polkadot/extension-inject/chrome";
+import extension from "extensionizer";
+import NotificationManager from "./notification-manager";
 
-chrome.runtime.onConnect.addListener((port) => {
-  assert(
-    [PORT_CONTENT, PORT_EXTENSION].includes(port.name),
-    `Unknown connection from ${port.name}`
-  );
+const notificationManager = new NotificationManager();
 
-  // message and disconnect handlers
-  port.onMessage.addListener((data) => {
-    // handlers(data, port);
-    console.log("onMessage", data);
+// chrome.runtime.onConnectExternal.addListener(function (port) {
+//   if (port.name === "ffnbolphmnfchfahpfpdimiplcbknmbb") {
+//     port.onMessage.addListener(function (msg) {
+//       console.log("port connect message:", msg);
+//       notificationManager.showPopup();
+//     });
+//     port.onDisconnect.addListener(function (something) {
+//       console.log("disconnected", something);
+//     });
+//   }
+// });
+
+// extension.runtime.onMessage(function (msg, sender, sendResponse) {
+//   console.log("message received", msg, sender);
+// });
+
+extension.runtime.onConnect.addListener((remotePort) => {
+  console.log("remotePort", remotePort);
+
+  remotePort.onMessage.addListener((msg) => {
+    console.log("msg", msg);
   });
-  port.onDisconnect.addListener(() => {
-    console.log(`Disconnected from ${port.name}`);
-  });
+  setTimeout(() => {
+    notificationManager.showPopup();
+  }, 5000);
 });
