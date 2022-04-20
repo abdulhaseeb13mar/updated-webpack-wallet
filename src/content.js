@@ -1,6 +1,8 @@
 import pump from "pump";
 import { WindowPostMessageStream } from "@metamask/post-message-stream";
 import PortStream from "extension-port-stream";
+import browser from "webextension-polyfill";
+
 const ObjectMultiplex = require("obj-multiplex");
 const extension = require("extensionizer");
 
@@ -13,6 +15,8 @@ const LEGACY_CONTENT_SCRIPT = "contentscript";
 const LEGACY_INPAGE = "inpage";
 const LEGACY_PROVIDER = "provider";
 const LEGACY_PUBLIC_CONFIG = "publicConfig";
+const INJECTED_WINDOW_PROVIDER_SOURCE = "@@@WINDOW_PROVIDER@@@";
+const windowOriginAtLoadTime = window.location.origin;
 
 if (shouldInjectProvider()) {
   injectScript();
@@ -45,27 +49,66 @@ async function setupStreams() {
     name: CONTENT_SCRIPT,
     target: PAGE,
   });
-  const extensionPort = extension.runtime.connect({ name: CONTENT_SCRIPT });
+  const extensionPort = browser.runtime.connect({ name: CONTENT_SCRIPT });
   const extensionStream = new PortStream(extensionPort);
+
+  window.addEventListener("message", event => {
+    console.log("EVRE==========", event.data?.target, event.data?.data?.data);
+    if (
+      event.data?.target === "sonar-content" &&
+      event.data?.data?.data?.method === "eth_requestAccounts"
+    ) {
+      console.log(
+        `%c content: inpage > background: ${JSON.stringify(event.data)}`,
+        "background: #bada55; color: #222"
+      );
+      extensionPort.postMessage(
+        event.data
+        //   {
+        //   method: event.data?.data?.data?.method,
+        //   params: event.data?.data?.data?.params,
+        // }
+      );
+    }
+  });
+
+  extensionPort.onMessage.addListener(data => {
+    // TODO: replace with better logging before v1. Now it's invaluable in debugging.
+    // eslint-disable-next-line no-console
+    console.log(
+      `%c content: background > inpage: ${JSON.stringify(data)}`,
+      "background: #222; color: #bada55"
+    );
+    window.postMessage(
+      {
+        data,
+        target: "metamask-provider",
+      },
+      windowOriginAtLoadTime
+    );
+  });
+
+  // let's grab the internal config
+  extensionPort.postMessage({ request: { method: "sonar_getConfig" } });
 
   // create and connect channel muxers
   // so we can handle the channels individually
-  const pageMux = new ObjectMultiplex();
-  pageMux.setMaxListeners(25);
-  const extensionMux = new ObjectMultiplex();
-  extensionMux.setMaxListeners(25);
-  extensionMux.ignoreStream(LEGACY_PUBLIC_CONFIG); // TODO:LegacyProvider: Delete
+  // const pageMux = new ObjectMultiplex();
+  // pageMux.setMaxListeners(25);
+  // const extensionMux = new ObjectMultiplex();
+  // extensionMux.setMaxListeners(25);
+  // extensionMux.ignoreStream(LEGACY_PUBLIC_CONFIG); // TODO:LegacyProvider: Delete
 
-  pump(pageMux, pageStream, pageMux, (err) =>
-    logStreamDisconnectWarning("SonarWallet Inpage Multiplex", err)
-  );
-  pump(extensionMux, extensionStream, extensionMux, (err) => {
-    logStreamDisconnectWarning("SonarWallet Background Multiplex", err);
-    notifyPageOfStreamFailure();
-  });
+  // pump(pageMux, pageStream, pageMux, err =>
+  //   logStreamDisconnectWarning("SonarWallet Inpage Multiplex", err)
+  // );
+  // pump(extensionMux, extensionStream, extensionMux, err => {
+  //   logStreamDisconnectWarning("SonarWallet Background Multiplex", err);
+  //   notifyPageOfStreamFailure();
+  // });
 
   // forward communication across page-background for these channels only
-  forwardTrafficBetweenMuxes(PROVIDER, pageMux, extensionMux);
+  // forwardTrafficBetweenMuxes(PROVIDER, pageMux, extensionMux);
 
   // connect "phishing" channel to warning system
   //   const phishingStream = extensionMux.createStream("phishing");
@@ -73,19 +116,19 @@ async function setupStreams() {
 
   // TODO:LegacyProvider: Delete
   // handle legacy provider
-  const legacyPageStream = new WindowPostMessageStream({
-    name: LEGACY_CONTENT_SCRIPT,
-    target: LEGACY_INPAGE,
-  });
+  // const legacyPageStream = new WindowPostMessageStream({
+  //   name: LEGACY_CONTENT_SCRIPT,
+  //   target: LEGACY_INPAGE,
+  // });
 
-  const legacyPageMux = new ObjectMultiplex();
-  legacyPageMux.setMaxListeners(25);
-  const legacyExtensionMux = new ObjectMultiplex();
-  legacyExtensionMux.setMaxListeners(25);
+  // const legacyPageMux = new ObjectMultiplex();
+  // legacyPageMux.setMaxListeners(25);
+  // const legacyExtensionMux = new ObjectMultiplex();
+  // legacyExtensionMux.setMaxListeners(25);
 
-  pump(legacyPageMux, legacyPageStream, legacyPageMux, (err) =>
-    logStreamDisconnectWarning("SonarWallet Legacy Inpage Multiplex", err)
-  );
+  // pump(legacyPageMux, legacyPageStream, legacyPageMux, err =>
+  //   logStreamDisconnectWarning("SonarWallet Legacy Inpage Multiplex", err)
+  // );
   //   pump(
   //     legacyExtensionMux,
   //     extensionStream,
@@ -97,23 +140,23 @@ async function setupStreams() {
   //     }
   //   );
 
-  forwardNamedTrafficBetweenMuxes(
-    LEGACY_PROVIDER,
-    PROVIDER,
-    legacyPageMux,
-    legacyExtensionMux
-  );
-  forwardTrafficBetweenMuxes(
-    LEGACY_PUBLIC_CONFIG,
-    legacyPageMux,
-    legacyExtensionMux
-  );
+  // forwardNamedTrafficBetweenMuxes(
+  //   LEGACY_PROVIDER,
+  //   PROVIDER,
+  //   legacyPageMux,
+  //   legacyExtensionMux
+  // );
+  // forwardTrafficBetweenMuxes(
+  //   LEGACY_PUBLIC_CONFIG,
+  //   legacyPageMux,
+  //   legacyExtensionMux
+  // );
 }
 
 function forwardTrafficBetweenMuxes(channelName, muxA, muxB) {
   const channelA = muxA.createStream(channelName);
   const channelB = muxB.createStream(channelName);
-  pump(channelA, channelB, channelA, (error) =>
+  pump(channelA, channelB, channelA, error =>
     console.debug(
       `SonarWallet: Muxed traffic for channel "${channelName}" failed.`,
       error
@@ -130,7 +173,7 @@ function forwardNamedTrafficBetweenMuxes(
 ) {
   const channelA = muxA.createStream(channelAName);
   const channelB = muxB.createStream(channelBName);
-  pump(channelA, channelB, channelA, (error) =>
+  pump(channelA, channelB, channelA, error =>
     console.debug(
       `SonarWallet: Muxed traffic between channels "${channelAName}" and "${channelBName}" failed.`,
       error
