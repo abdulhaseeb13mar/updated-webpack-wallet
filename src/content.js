@@ -2,6 +2,7 @@ import pump from "pump";
 import { WindowPostMessageStream } from "@metamask/post-message-stream";
 import PortStream from "extension-port-stream";
 import browser from "webextension-polyfill";
+import { setPermission } from "./utils";
 
 const ObjectMultiplex = require("obj-multiplex");
 const extension = require("extensionizer");
@@ -70,21 +71,42 @@ async function setupStreams() {
         // }
       );
     }
+
+    if (
+      // event.data?.target === "sonar-content" &&
+      event.data?.data?.data?.method === "eth_sendTransaction"
+    ) {
+      console.log(
+        `%c content: inpage > background: ${JSON.stringify(event.data)}`,
+        "background: #bada55; color: #222"
+      );
+      extensionPort.postMessage(
+        event.data
+        //   {
+        //   method: event.data?.data?.data?.method,
+        //   params: event.data?.data?.data?.params,
+        // }
+      );
+    }
   });
 
-  extensionPort.onMessage.addListener(data => {
+  extensionPort.onMessage.addListener(async data => {
     // TODO: replace with better logging before v1. Now it's invaluable in debugging.
     // eslint-disable-next-line no-console
     console.log(
       `%c content: background > inpage: ${JSON.stringify(data)}`,
       "background: #222; color: #bada55"
     );
+    console.log("DA==========", data);
     window.postMessage(
       {
-        data,
-        target: "metamask-provider",
+        target: PAGE,
+
+        data: {
+          data: { ...data },
+        },
       },
-      windowOriginAtLoadTime
+      window.location.origin
     );
   });
 
